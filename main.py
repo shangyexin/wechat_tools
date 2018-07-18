@@ -4,14 +4,17 @@ from PyQt5.QtWidgets import (QMainWindow, QFileDialog, QApplication, QInputDialo
 from PyQt5.QtCore import (QThread, pyqtSignal)
 from Ui_mainWindow import Ui_wechat_tools
 
-from withdraw import *
+from wechat import *
 
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
                     datefmt='%a, %d %b %Y %H:%M:%S',
                     )
 
+
 class MainWindow(QMainWindow, Ui_wechat_tools):
+    logged_in = False
+
     def __init__(self, parent=None):
         super(MainWindow, self).__init__()
         self.setFixedSize(800, 600)
@@ -30,13 +33,25 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
     # 扫码登录按钮
     def button_loggin_cliked(self):
         logging.debug('enter button_loggin_cliked ')
-        self.ui.button_login.setDisabled(True)
-        # 新建对象，传入参数
-        self.start_thread = run_wechat()
-        try:
-            self.start_thread.start()
-        except Exception as e:
-            logging.debug(e)
+
+        # 账号未登录
+        if not self.logged_in:
+            # 创建新线程登录微信
+            self.start_thread = run_wechat()
+            try:
+                self.start_thread.start()
+            except Exception as e:
+                logging.debug(e)
+
+            self.logged_in = True
+            self.ui.button_login.setText('退出登录')
+            self.ui_show_log('登录成功！')
+
+        # 账号已登录
+        else:
+            self.logged_in = False
+            self.ui.button_login.setText('扫码登录')
+            self.ui_show_log('账号已退出登录！')
 
 class run_wechat(QThread):
     # 构造函数里增加形参
@@ -46,8 +61,8 @@ class run_wechat(QThread):
     def run(self):
         logging.debug('enter child thread')
         try:
-            object = message_withdraw()
-            object.login()
+            new_id = single_wechat_id()
+            new_id.login()
         except Exception as e:
             logging.error(e)
 
