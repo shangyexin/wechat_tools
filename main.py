@@ -11,10 +11,10 @@ logging.basicConfig(level=logging.DEBUG,
                     datefmt='%a, %d %b %Y %H:%M:%S',
                     )
 
+logged_in = False
 
 class MainWindow(QMainWindow, Ui_wechat_tools):
-    logged_in = False
-
+    global logged_in
     def __init__(self, parent=None):
         super(MainWindow, self).__init__()
         self.setFixedSize(800, 600)
@@ -54,15 +54,22 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
             self.ui_show_log('账号已退出登录！')
 
 class run_wechat(QThread):
-    # 构造函数里增加形参
     def __init__(self, parent=None):
         super(run_wechat, self).__init__(parent)
+
+    # 登录成功回调
+    def on_login_success(self):
+        logging.debug('login success')
+
+    # 退出登录回调
+    def on_logout_success(self):
+        logging.debug('logout success')
 
     def run(self):
         logging.debug('enter child thread')
         try:
             new_id = single_wechat_id()
-            new_id.login()
+            new_id.login(self.on_login_success, self.on_logout_success)
         except Exception as e:
             logging.error(e)
 

@@ -11,15 +11,9 @@ msg_information = {}
 face_bug = None  # 针对表情包的内容
 
 class single_wechat_id:
-    def lc(self):
-        None
-
-    def ec(self):
-        None
-
     # 登录
-    def login(self):
-        itchat.auto_login(hotReload=True,loginCallback=self.lc, exitCallback=self.ec)
+    def login(self, login_callback, logout_callback):
+        itchat.auto_login(hotReload=True,loginCallback=login_callback, exitCallback=logout_callback)
 
     # 注销
     def logout(self):
