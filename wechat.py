@@ -19,6 +19,12 @@ class single_wechat_id:
     def logout(self):
         itchat.logout()
 
+    # 获取自己的昵称
+    def get_self_nickname(self):
+        friends = itchat.get_friends(update=True)
+        self_nick_name = friends[0].NickName  # 获取自己的昵称
+        return self_nick_name
+
     # 开启消息防撤回
     def enable_message_withdraw(self):
         # 这里的TEXT表示如果有人发送文本消息()
