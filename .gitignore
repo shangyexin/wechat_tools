@@ -135,8 +135,3 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
-
-
-Ui_mainWindow.ui
-itchat.pkl
-QR.png
