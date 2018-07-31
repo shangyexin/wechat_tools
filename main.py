@@ -129,7 +129,7 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
         self.ui.setupUi(self)
 
         # 菜单栏
-        self.ui.help_contact.triggered.connect(self.setting_cliked)
+        self.ui.setting_file_storage_path.triggered.connect(self.setting_cliked)
         self.ui.help_about.triggered.connect(self.help_about_clicked)
 
         # 按钮
@@ -156,9 +156,9 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
         print('设置被点击')
         self.file_store_path_get = QFileDialog.getExistingDirectory(self, '选取文件夹', '/home')
         if self.file_store_path_get:
-            self.file_store_path = self.file_store_path_get
+            self.withdraw_file_store_path = self.file_store_path_get
             # 将设置写入配置文件
-            self.my_config.set_withdraw_msg_file_path(self.file_store_path)
+            self.my_config.set_withdraw_msg_file_path(self.withdraw_file_store_path)
             self.ui_show_info('设置文件存储目录成功')
             try:
                 # 写入配置文件
@@ -191,18 +191,22 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
 
     # 消息防撤回按钮
     def button_withdraw_message(self):
-        logging.debug('withdraw message button is clicked! ')
-        if self.msg_withdraw_button_pressed is False:
-            self.msg_withdraw_button_pressed = True
-            self.wechat_handle.enable_message_withdraw(self.file_store_path)
-            # 改变按钮显示
-            self.ui_show_info('消息防撤回开启成功！')
-            self.ui.button_withdraw.setText('关闭消息防撤回')
-        else:
-            self.msg_withdraw_button_pressed = False
-            self.wechat_handle.disable_message_withdraw()
-            self.ui_show_info('消息防撤回关闭成功！')
-            self.ui.button_withdraw.setText('开启消息防撤回')
+        logging.info('withdraw message button is clicked! ')
+        try:
+            if self.msg_withdraw_button_pressed is False:
+                self.msg_withdraw_button_pressed = True
+                logging.debug(self.withdraw_file_store_path)
+                self.wechat_handle.enable_message_withdraw(self.withdraw_file_store_path)
+                # 改变按钮显示
+                self.ui_show_info('消息防撤回开启成功！')
+                self.ui.button_withdraw.setText('关闭消息防撤回')
+            else:
+                self.msg_withdraw_button_pressed = False
+                self.wechat_handle.disable_message_withdraw()
+                self.ui_show_info('消息防撤回关闭成功！')
+                self.ui.button_withdraw.setText('开启消息防撤回')
+        except Exception as e:
+            logging.error(e)
 
     # 显示撤回的消息
     def show_withdraw_msg(self, msg):
@@ -223,7 +227,7 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
     # 获取用户名成功
     def get_uername_success(self, username):
         # 改变用户名标签
-        self.ui.label.setText(username)
+        self.ui.login_name.setText(username)
         self.ui_show_info('获取用户名及好友信息成功！')
 
     # 退出登录处理函数
@@ -235,7 +239,7 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
         # 显示退出信息
         self.ui_show_info('账号已退出登录！')
         # 改变用户名标签
-        self.ui.label.setText('Not Login')
+        self.ui.login_name.setText('Not Login')
         # 清除文本框信息
         self.ui_show_clear()
 

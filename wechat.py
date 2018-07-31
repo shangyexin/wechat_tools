@@ -45,7 +45,6 @@ class single_wechat_id:
                              isFriendChat=True,
                              isGroupChat=True)
         def receive_msg(msg):
-            print('receive_msg')
             global face_bug
             # print("消息是："+str(msg))
             msg_time_rec = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())  # 接收消息的时间
@@ -129,8 +128,7 @@ class single_wechat_id:
 
         # 监听是否有消息撤回
         @itchat.msg_register(NOTE, isFriendChat=True, isGroupChat=True, isMpChat=True)
-        def information(msg):
-            print('information')
+        def receive_information(msg):
             # 如果这里的msg['Content']中包含消息撤回和id，就执行下面的语句
             if '撤回了一条消息' in msg['Content']:
                 old_msg_id = re.search("\<msgid\>(.*?)\<\/msgid\>", msg['Content']).group(1)  # 在返回的content查找撤回的消息的id
