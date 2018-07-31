@@ -12,8 +12,9 @@ face_bug = None  # 针对表情包的内容
 
 class single_wechat_id:
     # 登录
-    def login(self, login_callback, logout_callback):
-        itchat.auto_login(hotReload=True,loginCallback=login_callback, exitCallback=logout_callback)
+    def login(self,status_storage_dir, pic_dir, login_callback, logout_callback):
+        itchat.auto_login(hotReload=True, statusStorageDir=status_storage_dir, picDir = pic_dir, loginCallback=login_callback, exitCallback=logout_callback)
+        itchat.run()
 
     # 注销
     def logout(self):
@@ -26,7 +27,7 @@ class single_wechat_id:
         return self_nick_name
 
     # 开启消息防撤回
-    def enable_message_withdraw(self):
+    def enable_message_withdraw(self, file_store_path, cb):
         # 这里的TEXT表示如果有人发送文本消息()
         # TEXT  文本  文本内容(文字消息)
         # MAP  地图  位置文本(位置分享)
@@ -43,7 +44,8 @@ class single_wechat_id:
         @itchat.msg_register([TEXT, PICTURE, FRIENDS, CARD, MAP, SHARING, RECORDING, ATTACHMENT, VIDEO],
                              isFriendChat=True,
                              isGroupChat=True)
-        def receive_msg(slef, msg):
+        def receive_msg(msg):
+            print('receive_msg')
             global face_bug
             # print("消息是："+str(msg))
             msg_time_rec = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())  # 接收消息的时间
@@ -85,7 +87,9 @@ class single_wechat_id:
                     or msg['Type'] == 'Picture' \
                     or msg['Type'] == 'Recording':
                 msg_content = msg['FileName']  # 内容就是他们的文件名
-                # msg_content = "F:\\weixininfo\\"+msg['FileName']
+                # msg_save_name = "E:\\weixininfo\\"+msg['FileName']
+                # with open(msg_save_name, 'w') as f:
+                #     f.write(msg_content)
                 msg['Text'](str(msg_content))  # 下载文件
             elif msg['Type'] == 'Map':  # 如果消息为分享的位置信息
                 x, y, location = re.search(
@@ -125,7 +129,8 @@ class single_wechat_id:
 
         # 监听是否有消息撤回
         @itchat.msg_register(NOTE, isFriendChat=True, isGroupChat=True, isMpChat=True)
-        def information(self, msg):
+        def information(msg):
+            print('information')
             # 如果这里的msg['Content']中包含消息撤回和id，就执行下面的语句
             if '撤回了一条消息' in msg['Content']:
                 old_msg_id = re.search("\<msgid\>(.*?)\<\/msgid\>", msg['Content']).group(1)  # 在返回的content查找撤回的消息的id
@@ -140,6 +145,8 @@ class single_wechat_id:
                     if old_msg['msg_type'] == "Sharing":
                         msg_body += "\n链接是:" + old_msg.get('msg_share_url')
                     # print(msg_body)
+                    # 回调函数
+                    cb(msg_body)
                     itchat.send_msg(msg_body, toUserName='filehelper')  # 将撤回消息发给文件助手
                     # 有文件的话也要将文件发送回去
                     if old_msg["msg_type"] == "Picture" \
@@ -148,13 +155,17 @@ class single_wechat_id:
                             or old_msg["msg_type"] == "Attachment":
                         file = '@fil@%s' % (old_msg['msg_content'])
                         itchat.send(msg=file, toUserName='filehelper')
+                        msg_file_save = os.path.join(file_store_path, msg['FileName'])
+                        print(msg_file_save)
+                        with open( msg_file_save, 'w') as f:
+                            f.write(old_msg['msg_content'])
                         os.remove(old_msg['msg_content'])
                     msg_information.pop(old_msg_id)  # 删除字典旧消息
 
+
     # 关闭消息防撤回
     def disable_message_withdraw(self):
-        # 不带参数注册，所有消息类型都将调用该方法（包括群消息）
-        @itchat.msg_register
+        @itchat.msg_register(NOTE, isFriendChat=True, isGroupChat=True, isMpChat=True)
         def no_action(msg):
-            None
+            print('no action')
 
