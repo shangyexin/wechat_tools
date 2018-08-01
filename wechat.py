@@ -1,19 +1,22 @@
 # -*- coding: utf-8 -*-
+import time, subprocess, re, os, logging
 
 import itchat
-from itchat.content import TEXT
 from itchat.content import *
-import time
-import re
-import os
+import pandas as pd
+import matplotlib.pyplot as plt
+import jieba
+from wordcloud import WordCloud, ImageColorGenerator
 
 msg_information = {}
 face_bug = None  # 针对表情包的内容
 
 class single_wechat_id:
+    friends = None
+    abs_store_path = None
     # 登录
     def login(self,status_storage_dir, pic_dir, login_callback, logout_callback):
-        itchat.auto_login(hotReload=True, statusStorageDir=status_storage_dir, picDir = pic_dir, loginCallback=login_callback, exitCallback=logout_callback)
+        itchat.auto_login(statusStorageDir=status_storage_dir, picDir = pic_dir, loginCallback=login_callback, exitCallback=logout_callback)
         itchat.run()
 
     # 注销
@@ -22,9 +25,86 @@ class single_wechat_id:
 
     # 获取自己的昵称
     def get_self_nickname(self):
-        friends = itchat.get_friends(update=True)
-        self_nick_name = friends[0].NickName  # 获取自己的昵称
+        self.friends = itchat.get_friends(update=True)
+        self_nick_name = self.friends[0].NickName  # 获取自己的昵称
         return self_nick_name
+
+    # 分析性别
+    def analyze_sex(self, pic_storage_dir):
+        male = 0
+        female = 0
+        other = 0
+        # friends[0]是自己的信息，因此我们要从[1:]开始
+        for i in self.friends[1:]:
+            sex = i['Sex']  # 注意大小写，2 是女性， 1 是男性
+            if sex == 1:
+                male += 1
+            elif sex == 2:
+                female += 1
+            else:
+                other += 1
+        # 计算好友总数
+        total = len( self.friends[1:])
+        # print('好友总数：', total)
+        male_percent = male / total * 100
+        female_percent = female /total * 100
+        other_percent = other / total * 100
+        # print('男性比例：%2f%%' % (float(male) / total * 100))
+        # print('女性比例：%2f%%' % (float(female) / total * 100))
+        # print('未知性别：%2f%%' % (float(other) / total * 100))
+        # 性别饼状图
+        labels = '男'+str(male), '女'+str(female), '未知'+str(other)
+        color = 'blue','red' , 'gray'
+        sizes = []
+        sizes.append(male_percent)
+        sizes.append(female_percent)
+        sizes.append(other_percent)
+        explode = (0, 0.1, 0)  # 0.1表示将fenale那一块凸显出来
+        plt.pie(sizes, colors=color, explode= explode, labels=labels, autopct='%1.1f%%', shadow=True,
+                startangle=90)  # startangle表示饼图的起始角度
+        plt.axis('equal')  # 正圆
+        plt.rcParams['font.sans-serif'] = ['SimHei']# 字体，不设置中文不显示
+        plt.title('好友性别分布'+'(共'+str(total)+'人)', fontsize=12)
+        sex_analysis_pic = os.path.join(pic_storage_dir, 'sex_analysis.png')
+        plt.savefig(sex_analysis_pic)
+        plt.close()
+        # plt.show()
+        return
+
+    # 分析省份
+    def analyze_area(self, pic_storage_dir):
+        # 提取出好友的昵称、性别、省份、城市、个性签名，生成一个数据框
+        data = pd.DataFrame()
+        columns = ['NickName', 'Sex', 'Province', 'City', 'Signature']
+        for col in columns:
+            val = []
+            for i in self.friends[1:]:
+                val.append(i[col])
+            data[col] = pd.Series(val)
+        # 省份柱状图
+        plt.bar(data['Province'].value_counts().index, data['Province'].value_counts())  # 选择柱状图，而不是直方图。
+        plt.xticks(rotation=90)  # 横坐标旋转90度
+        plt.rcParams['font.sans-serif'] = ['SimHei']
+        plt.title('好友地区分布', fontsize=12)
+        area_analysis_pic = os.path.join(pic_storage_dir, 'area_analysis.png')
+        plt.savefig(area_analysis_pic)
+        # plt.show()
+        plt.close()
+        return
+
+    # 词图制作
+    # 分析自己的好友
+    def analyze_friends(self, pic_storage_dir):
+        self.analyze_sex(pic_storage_dir)
+        self.analyze_area(pic_storage_dir)
+        # 在资源管理器中打开
+        abs_path = os.path.abspath(pic_storage_dir)
+        open_dst_cmd = 'explorer.exe ' + abs_path
+        try:
+            subprocess.Popen(open_dst_cmd)
+        except Exception as e:
+            logging.error(e)
+
 
     # 开启消息防撤回
     def enable_message_withdraw(self, file_store_path, cb):
@@ -89,7 +169,8 @@ class single_wechat_id:
                 # msg_save_name = "E:\\weixininfo\\"+msg['FileName']
                 # with open(msg_save_name, 'w') as f:
                 #     f.write(msg_content)
-                msg['Text'](str(msg_content))  # 下载文件
+                self.abs_store_path = os.path.join(file_store_path, str(msg_content))
+                msg['Text'](self.abs_store_path)  # 下载文件
             elif msg['Type'] == 'Map':  # 如果消息为分享的位置信息
                 x, y, location = re.search(
                     "<location x=\"(.*?)\" y=\"(.*?)\".*label=\"(.*?)\".*", msg['OriContent']).group(1, 2, 3)
@@ -151,13 +232,9 @@ class single_wechat_id:
                             or old_msg["msg_type"] == "Recording" \
                             or old_msg["msg_type"] == "Video" \
                             or old_msg["msg_type"] == "Attachment":
-                        file = '@fil@%s' % (old_msg['msg_content'])
+                        file = '@fil@%s' % (self.abs_store_path)
                         itchat.send(msg=file, toUserName='filehelper')
-                        msg_file_save = os.path.join(file_store_path, msg['FileName'])
-                        print(msg_file_save)
-                        with open( msg_file_save, 'w') as f:
-                            f.write(old_msg['msg_content'])
-                        os.remove(old_msg['msg_content'])
+                        # os.remove(old_msg['msg_content'])
                     msg_information.pop(old_msg_id)  # 删除字典旧消息
 
 

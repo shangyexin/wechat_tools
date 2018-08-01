@@ -27,6 +27,8 @@ class run_wechat(QObject):
 
     #登录扫码图片
     qr_pic = None
+    # 工作目录
+    work_dir = None
 
     def __init__(self):
         super().__init__()
@@ -82,6 +84,10 @@ class run_wechat(QObject):
         self.finished.emit()
         return
 
+    # 好友分析
+    def analyze_friends(self):
+        self.single_id.analyze_friends(self.work_dir)
+
     # 微信消息撤回回调
     def msg_withdraw_cb(self, msg):
         logging.info('消息撤回回调')
@@ -134,6 +140,7 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
 
         # 按钮
         self.ui.button_login.clicked.connect(self.button_loggin_cliked)
+        self.ui.button_analyze.clicked.connect(self.button_analyze_cliked)
         self.ui.button_withdraw.clicked.connect(self.button_withdraw_message)
 
         # 按钮全部置灰，登录后才可使用
@@ -189,6 +196,12 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
             self.wechat_handle.loggout()
             self.login_button_pressed = False
 
+    # 好友分析按钮
+    def button_analyze_cliked(self):
+        logging.debug('analyze button is clicked!')
+        self.wechat_handle.analyze_friends()
+        self.ui_show_info('好友分析完成！')
+
     # 消息防撤回按钮
     def button_withdraw_message(self):
         logging.info('withdraw message button is clicked! ')
@@ -214,8 +227,6 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
 
     # 登录成功处理函数
     def login_ui_set(self):
-        # 开启其它功能按钮
-        self.disable_function_buttons(False)
         # 改变登录按钮显示
         self.ui.button_login.setText('退出登录')
         # 取消按钮置灰，恢复可用
@@ -228,6 +239,8 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
     def get_uername_success(self, username):
         # 改变用户名标签
         self.ui.login_name.setText(username)
+        # 开启其它功能按钮
+        self.disable_function_buttons(False)
         self.ui_show_info('获取用户名及好友信息成功！')
 
     # 退出登录处理函数
@@ -240,6 +253,9 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
         self.ui_show_info('账号已退出登录！')
         # 改变用户名标签
         self.ui.login_name.setText('Not Login')
+        # 重置按钮状态
+        self.msg_withdraw_button_pressed = False
+        self.ui.button_withdraw.setText('开启消息防撤回')
         # 清除文本框信息
         self.ui_show_clear()
 
