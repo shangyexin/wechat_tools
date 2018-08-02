@@ -199,6 +199,7 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
     # 好友分析按钮
     def button_analyze_cliked(self):
         logging.debug('analyze button is clicked!')
+        self.ui_show_info('好友数据分析中，请稍后...')
         self.wechat_handle.analyze_friends()
         self.ui_show_info('好友分析完成！')
 
