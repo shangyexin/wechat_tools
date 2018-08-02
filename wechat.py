@@ -15,6 +15,7 @@ emoticon = None  # 针对表情包的内容
 
 class single_wechat_id:
     friends = None
+    head_img_path = None
     # 登录
     def login(self,status_storage_dir, pic_dir, login_callback, logout_callback):
         itchat.auto_login(statusStorageDir=status_storage_dir, picDir = pic_dir, loginCallback=login_callback, exitCallback=logout_callback)
@@ -29,6 +30,15 @@ class single_wechat_id:
         self.friends = itchat.get_friends(update=True)
         self_nick_name = self.friends[0].NickName  # 获取自己的昵称
         return self_nick_name
+
+    # 获取自己的头像并存入本地
+    def get_self_head_img(self, work_dir):
+        head_img = itchat.get_head_img(userName=self.friends[0].UserName)
+        self.head_img_path = os.path.join(work_dir, 'headimg.jpg')
+        with open(self.head_img_path, 'wb') as f:
+            f.write(head_img)
+
+        return
 
     # 分析自己的好友
     def analyze_friends(self, pic_storage_dir):
@@ -116,7 +126,7 @@ class single_wechat_id:
             word_list = jieba.cut(text, cut_all=True)   #结巴分词
             word_space_split = ' '.join(word_list)
 
-            coloring = np.array(Image.open("E:/we/test.png"))
+            coloring = np.array(Image.open(self.head_img_path))
             my_wordcloud = WordCloud(background_color="white", max_words=2000,
                                      mask=coloring, max_font_size=150, random_state=11, scale=2,
                                      font_path="C:/Windows/Fonts/simkai.ttf").generate(word_space_split)
@@ -135,6 +145,7 @@ class single_wechat_id:
             analyze_sex(pic_storage_dir)
             analyze_area(pic_storage_dir)
             generate_cloud_pic(pic_storage_dir)
+            print(os.getpid())
         except Exception as e:
             logging.error(e)
 

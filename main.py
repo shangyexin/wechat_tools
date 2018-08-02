@@ -12,6 +12,24 @@ logging.basicConfig(level=logging.INFO,
                     datefmt='%a, %d %b %Y %H:%M:%S',
                     )
 
+single_id = None
+
+class analyze_friends(QObject):
+    # 进程结束信号
+    finished = pyqtSignal()
+    def __init__(self):
+        super().__init__()
+
+    # 好友分析
+    def do_analyze(self):
+        home_path = os.path.expandvars('%USERPROFILE%')
+        out_put_floder = 'wechat_friends'
+        out_put_path = os.path.join(home_path, out_put_floder)
+        if not os.path.isdir(out_put_path):
+            os.makedirs(out_put_path)
+        single_id.analyze_friends(out_put_path)
+        self.finished.emit()
+        return
 
 class run_wechat(QObject):
     # 进程结束信号
@@ -32,7 +50,9 @@ class run_wechat(QObject):
 
     def __init__(self):
         super().__init__()
-        self.single_id = single_wechat_id()
+        global single_id
+        # self.single_id = single_wechat_id()
+        single_id = single_wechat_id()
 
     # 登录成功回调
     @pyqtSlot()
@@ -43,7 +63,8 @@ class run_wechat(QObject):
         # 发送登录成功信号
         self.login_signal.emit()
         try:
-            username = self.single_id.get_self_nickname()
+            username = single_id.get_self_nickname()
+            single_id.get_self_head_img(self.work_dir)  #下载头像到本地
         except Exception as e:
             logging.error(e)
         logging.info(username)
@@ -62,8 +83,8 @@ class run_wechat(QObject):
 
     # 登录微信
     def log_in(self):
-        self.home_path = os.path.expandvars('%USERPROFILE%')
-        self.work_dir = os.path.join(self.home_path, 'wechat_tools')
+        home_path = os.path.expandvars('%USERPROFILE%')
+        self.work_dir = os.path.join(home_path, 'wechat_tools')
         logging.debug('work_dir is ' + self.work_dir)
         self.qr_pic = os.path.join(self.work_dir, 'QR.png')
         logging.debug('qr pic path is ' + self.qr_pic)
@@ -72,21 +93,17 @@ class run_wechat(QObject):
         if not os.path.isdir(self.work_dir):
             os.makedirs(self.work_dir)
         try:
-            self.single_id.login(self.status_storage_file, self.qr_pic, self.on_login_success, self.on_logout_success)
+            single_id.login(self.status_storage_file, self.qr_pic, self.on_login_success, self.on_logout_success)
         except Exception as e:
             logging.error(e)
         return
 
     # 注销登录
     def loggout(self):
-        self.single_id.logout()
+        single_id.logout()
         # 发送进程结束信号
         self.finished.emit()
         return
-
-    # 好友分析
-    def analyze_friends(self):
-        self.single_id.analyze_friends(self.work_dir)
 
     # 微信消息撤回回调
     def msg_withdraw_cb(self, msg):
@@ -98,12 +115,12 @@ class run_wechat(QObject):
     # 开启微信防撤回
     def enable_message_withdraw(self, file_store_path):
         logging.info('开启消息防撤回')
-        self.single_id.enable_message_withdraw(file_store_path, self.msg_withdraw_cb)
+        single_id.enable_message_withdraw(file_store_path, self.msg_withdraw_cb)
         return
 
     # 关闭微信防撤回
     def disable_message_withdraw(self):
-        self.single_id.disable_message_withdraw()
+        single_id.disable_message_withdraw()
         return
 
 class MainWindow(QMainWindow, Ui_wechat_tools):
@@ -117,7 +134,7 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
 
         # 微信登录处理函数
         self.wechat_handle = run_wechat()
-        # 多线程
+        # 多线程，微信运行线程
         self.thread = QThread()
         # 连接登录状态信号和槽函数
         self.wechat_handle.login_signal.connect(self.login_ui_set)
@@ -130,6 +147,14 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
         self.wechat_handle.finished.connect(self.thread.quit)
         # 连接线程启动函数
         self.thread.started.connect(self.wechat_handle.log_in)
+
+        # 多线程，好友分析线程
+        self.analyze = analyze_friends()
+        self.analyze_thread = QThread()
+        self.analyze.moveToThread(self.analyze_thread)
+        self.analyze_thread.started.connect(self.analyze.do_analyze)
+        self.analyze.finished.connect(self.analyze_friends_finished)
+        self.analyze.finished.connect(self.thread.quit)
 
         self.ui = Ui_wechat_tools()
         self.ui.setupUi(self)
@@ -200,7 +225,9 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
     def button_analyze_cliked(self):
         logging.debug('analyze button is clicked!')
         self.ui_show_info('好友数据分析中，请稍后...')
-        self.wechat_handle.analyze_friends()
+        self.analyze_thread.start()
+
+    def analyze_friends_finished(self):
         self.ui_show_info('好友分析完成！')
 
     # 消息防撤回按钮
@@ -250,6 +277,8 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
         self.disable_function_buttons(True)
         # 改变登录按钮显示
         self.ui.button_login.setText('扫码登录')
+        # 清除文本框信息
+        self.ui_show_clear()
         # 显示退出信息
         self.ui_show_info('账号已退出登录！')
         # 改变用户名标签
@@ -257,8 +286,7 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
         # 重置按钮状态
         self.msg_withdraw_button_pressed = False
         self.ui.button_withdraw.setText('开启消息防撤回')
-        # 清除文本框信息
-        self.ui_show_clear()
+
 
     # 置灰功能按钮
     def disable_function_buttons(self, switch):
@@ -275,7 +303,8 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
             logging.info(self.withdraw_file_store_path)
             self.ui_show_info('读取配置文件成功！')
         else:
-            self.ui_show_info('读取文件储存路径失败')
+            self.ui_show_info('创建默认配置文件！')
+
 
 
 if __name__ == "__main__":
