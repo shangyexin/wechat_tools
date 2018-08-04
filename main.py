@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-import sys, logging
+import sys, logging, os
 from PyQt5.QtWidgets import (QMainWindow, QFileDialog, QApplication, QMessageBox)
 from PyQt5.QtCore import (QThread, pyqtSignal, QObject, pyqtSlot)
 from Ui_mainWindow import Ui_wechat_tools
 
-from wechat import *
-from configure import *
+from wechat import single_wechat_id
+from configure import configure
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
@@ -14,9 +14,11 @@ logging.basicConfig(level=logging.INFO,
 
 single_id = None
 
+
 class analyze_friends(QObject):
     # 进程结束信号
     finished = pyqtSignal()
+
     def __init__(self):
         super().__init__()
 
@@ -31,6 +33,7 @@ class analyze_friends(QObject):
         self.finished.emit()
         return
 
+
 class run_wechat(QObject):
     # 进程结束信号
     finished = pyqtSignal()
@@ -42,8 +45,10 @@ class run_wechat(QObject):
     logout_signal = pyqtSignal()
     # 声明一个消息撤回信号
     msg_withdraw_signal = pyqtSignal(str)
+    # 声明一个机器人回复消息信号
+    robot_reply_signal = pyqtSignal(str)
 
-    #登录扫码图片
+    # 登录扫码图片
     qr_pic = None
     # 工作目录
     work_dir = None
@@ -64,7 +69,7 @@ class run_wechat(QObject):
         self.login_signal.emit()
         try:
             username = single_id.get_self_nickname()
-            single_id.get_self_head_img(self.work_dir)  #下载头像到本地
+            single_id.get_self_head_img(self.work_dir)  # 下载头像到本地
         except Exception as e:
             logging.error(e)
         logging.info(username)
@@ -123,9 +128,25 @@ class run_wechat(QObject):
         single_id.disable_message_withdraw()
         return
 
+    # 机器人回复消息回调
+    def enable_robot_cb(self, msg_show):
+        self.robot_reply_signal.emit(msg_show)
+
+    # 开启聊天机器人
+    def enable_robot(self):
+        single_id.enable_robot(self.enable_robot_cb)
+        return
+
+    # 关闭聊天机器人
+    def disable_robot(self):
+        single_id.disable_robot()
+        return
+
+
 class MainWindow(QMainWindow, Ui_wechat_tools):
     login_button_pressed = False
     msg_withdraw_button_pressed = False
+    robot_button_pressed = False
     withdraw_file_store_path = None
 
     def __init__(self, parent=None):
@@ -141,6 +162,7 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
         self.wechat_handle.logout_signal.connect(self.logout_ui_set)
         self.wechat_handle.get_username_signal.connect(self.get_uername_success)
         self.wechat_handle.msg_withdraw_signal.connect(self.show_withdraw_msg)
+        self.wechat_handle.robot_reply_signal.connect(self.show_robot_reply_msg)
         # 将处理函数与多线程绑定
         self.wechat_handle.moveToThread(self.thread)
         # 连接线程退出信号
@@ -160,13 +182,16 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
         self.ui.setupUi(self)
 
         # 菜单栏
+        self.ui.file_quit.triggered.connect(self.close)
         self.ui.setting_file_storage_path.triggered.connect(self.setting_cliked)
         self.ui.help_about.triggered.connect(self.help_about_clicked)
 
         # 按钮
         self.ui.button_login.clicked.connect(self.button_loggin_cliked)
         self.ui.button_analyze.clicked.connect(self.button_analyze_cliked)
+        self.ui.button_delete_detection.clicked.connect(self.button_detection_cliked)
         self.ui.button_withdraw.clicked.connect(self.button_withdraw_message)
+        self.ui.button_robot.clicked.connect(self.button_robot_cliked)
 
         # 按钮全部置灰，登录后才可使用
         self.disable_function_buttons(True)
@@ -206,6 +231,7 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
                           'version：0.1'
                           '\n'
                           'author: yasin')
+        return
 
     # 扫码登录按钮
     def button_loggin_cliked(self):
@@ -216,19 +242,29 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
             self.ui.button_login.setDisabled(True)
             # 启动新线程
             self.thread.start()
+
         else:
             # 注销登录
             self.wechat_handle.loggout()
             self.login_button_pressed = False
+        return
 
     # 好友分析按钮
     def button_analyze_cliked(self):
         logging.debug('analyze button is clicked!')
         self.ui_show_info('好友数据分析中，请稍后...')
         self.analyze_thread.start()
+        return
 
+    # 好友分析完成显示
     def analyze_friends_finished(self):
         self.ui_show_info('好友分析完成！')
+        return
+
+    # 好友删除检测按钮
+    def button_detection_cliked(self):
+        self.ui_show_info('邀请频率已被微信限制，该功能暂时无法使用！')
+        return
 
     # 消息防撤回按钮
     def button_withdraw_message(self):
@@ -241,17 +277,42 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
                 # 改变按钮显示
                 self.ui_show_info('消息防撤回开启成功！')
                 self.ui.button_withdraw.setText('关闭消息防撤回')
+                self.ui.button_robot.setDisabled(True)
             else:
                 self.msg_withdraw_button_pressed = False
                 self.wechat_handle.disable_message_withdraw()
                 self.ui_show_info('消息防撤回关闭成功！')
                 self.ui.button_withdraw.setText('开启消息防撤回')
+                self.ui.button_robot.setDisabled(False)
         except Exception as e:
             logging.error(e)
+        return
 
     # 显示撤回的消息
     def show_withdraw_msg(self, msg):
         self.ui_show_info(msg)
+        return
+
+    # 点击聊天机器人按钮
+    def button_robot_cliked(self):
+        if self.robot_button_pressed is False:
+            self.robot_button_pressed = True
+            self.ui_show_info('开启聊天机器人！')
+            self.ui.button_robot.setText('关闭自动回复机器人')
+            self.ui.button_withdraw.setDisabled(True)
+            self.wechat_handle.enable_robot()
+        else:
+            self.robot_button_pressed = False
+            self.ui_show_info('关闭聊天机器人！')
+            self.ui.button_robot.setText('开启自动回复机器人')
+            self.ui.button_withdraw.setDisabled(False)
+            self.wechat_handle.disable_robot()
+        return
+
+    # 显示机器人自动回复消息
+    def show_robot_reply_msg(self, reply_msg):
+        self.ui_show_info(reply_msg)
+        return
 
     # 登录成功处理函数
     def login_ui_set(self):
@@ -262,6 +323,7 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
         # 显示登录成功信息
         self.ui_show_info('登录成功！')
         self.ui_show_info('正在获取用户名及好友信息，请稍后...')
+        return
 
     # 获取用户名成功
     def get_uername_success(self, username):
@@ -270,6 +332,7 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
         # 开启其它功能按钮
         self.disable_function_buttons(False)
         self.ui_show_info('获取用户名及好友信息成功！')
+        return
 
     # 退出登录处理函数
     def logout_ui_set(self):
@@ -285,8 +348,10 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
         self.ui.login_name.setText('Not Login')
         # 重置按钮状态
         self.msg_withdraw_button_pressed = False
+        self.robot_button_pressed = False
         self.ui.button_withdraw.setText('开启消息防撤回')
-
+        self.ui.button_robot.setText('开启自动回复机器人')
+        return
 
     # 置灰功能按钮
     def disable_function_buttons(self, switch):
@@ -294,17 +359,21 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
         self.ui.button_analyze.setDisabled(switch)
         self.ui.button_delete_detection.setDisabled(switch)
         self.ui.button_robot.setDisabled(switch)
+        return
 
     # 读取配置文件
     def read_config_file(self):
         # 读取撤回文件储存路径
-        self.withdraw_file_store_path =  self.my_config.get_withdraw_msg_file_path()
+        self.withdraw_file_store_path = self.my_config.get_withdraw_msg_file_path()
+        # 文件夹不存在的话则创建
+        if not os.path.isdir(self.withdraw_file_store_path):
+            os.makedirs(self.withdraw_file_store_path)
         if (self.withdraw_file_store_path != None):
             logging.info(self.withdraw_file_store_path)
             self.ui_show_info('读取配置文件成功！')
         else:
-            self.ui_show_info('创建默认配置文件！')
-
+            self.ui_show_info('读取配置文件失败！')
+        return
 
 
 if __name__ == "__main__":

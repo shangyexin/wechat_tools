@@ -9,11 +9,13 @@ import jieba
 import numpy as np
 import PIL.Image as Image
 from wordcloud import WordCloud, ImageColorGenerator
+import requests
 
 msg_information = {}
 emoticon = None  # 针对表情包的内容
 
 class single_wechat_id:
+    id_username = None
     friends = None
     head_img_path = None
     # 登录
@@ -25,9 +27,11 @@ class single_wechat_id:
     def logout(self):
         itchat.logout()
 
-    # 获取自己的昵称
+    # 获取自己的用户名与昵称
     def get_self_nickname(self):
         self.friends = itchat.get_friends(update=True)
+        self.id_username = self.friends[0].UserName # 获取自己的用户名
+        logging.debug('id_usrname is %s' % self.id_username)
         self_nick_name = self.friends[0].NickName  # 获取自己的昵称
         return self_nick_name
 
@@ -313,5 +317,61 @@ class single_wechat_id:
     def disable_message_withdraw(self):
         @itchat.msg_register(NOTE, isFriendChat=True, isGroupChat=True, isMpChat=True)
         def no_action(msg):
-            print('no action')
+            logging.info('Message withdraw has been disabled, no action for receive a new message')
 
+    # 开启图灵机器人
+    def enable_robot(self, cb):
+        KEY = 'b6c3b950e5c94d0cacced7676b099798'
+        def get_response(msg):
+            # 这里我们就像在“3. 实现最简单的与图灵机器人的交互”中做的一样
+            # 构造了要发送给服务器的数据
+            apiUrl = 'http://www.tuling123.com/openapi/api'
+            data = {
+                'key': KEY,
+                'info': msg,
+                'userid': 'wechat-robot',
+            }
+            try:
+                r = requests.post(apiUrl, data=data).json()
+                # 字典的get方法在字典没有'text'值的时候会返回None而不会抛出异常
+                logging.info('Post robot message success!')
+                reply_msg = r.get('text')
+                logging.info('reply_msg is: %s' % reply_msg)
+                return reply_msg
+            # 为了防止服务器没有正常响应导致程序异常退出，这里用try-except捕获了异常
+            # 如果服务器没能正常交互（返回非json或无法连接），那么就会进入下面的return
+            except Exception as e:
+                # 将会返回一个None
+                logging.error(e)
+                return
+
+        # 注册消息，只关注文本信息
+        @itchat.msg_register(itchat.content.TEXT, isFriendChat=True, isGroupChat=False)
+        def tuling_reply(msg):
+            # 为了保证在图灵Key出现问题的时候仍旧可以回复，这里设置一个默认回复
+            defaultReply = 'I received: ' + msg['Text']
+            # 自己的消息不回复
+            if msg['FromUserName'] != self.id_username :
+                reply = get_response(msg['Text'])
+                # 如果图灵Key出现问题，那么reply将会是None
+                if reply is None:
+                    reply = defaultReply
+                if itchat.search_friends(userName=msg['FromUserName'])['RemarkName']:  # 优先使用备注名称
+                    msg_from = itchat.search_friends(userName=msg['FromUserName'])['RemarkName']
+                else:
+                    msg_from = itchat.search_friends(userName=msg['FromUserName'])['NickName']  # 在好友列表中查询发送信息的好友昵称
+                    msg_time_rec = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())  # 接收消息的时间
+                msg_show = '\n' + str(msg_time_rec)  + ' ' + msg_from + " : " + msg['Text'] \
+                        + '\n自动回复内容： '+ reply
+                logging.info('msg_show is %s' % msg_show)
+                cb(msg_show)
+                return reply
+            else:
+                logging.info('Receive a message from self.')
+
+    # 关闭机器人
+    def disable_robot(self):
+        @itchat.msg_register(itchat.content.TEXT)
+        def tuling_reply(msg):
+            logging.info('Robot has been disabled, no action for a new message.')
+        return
