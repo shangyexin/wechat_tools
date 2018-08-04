@@ -19,6 +19,10 @@
   <property name="windowTitle">
    <string>WechatTools</string>
   </property>
+  <property name="windowIcon">
+   <iconset resource="icon/icon.qrc">
+    <normaloff>:/icon/wechat.png</normaloff>:/icon/wechat.png</iconset>
+  </property>
   <widget class="QWidget" name="centralwidget">
    <widget class="QWidget" name="horizontalLayoutWidget">
     <property name="geometry">
@@ -163,6 +167,35 @@
      <string>扫码登录</string>
     </property>
    </widget>
+   <widget class="QWidget" name="horizontalLayoutWidget_3">
+    <property name="geometry">
+     <rect>
+      <x>560</x>
+      <y>10</y>
+      <width>221</width>
+      <height>51</height>
+     </rect>
+    </property>
+    <layout class="QHBoxLayout" name="horizontalLayout_3">
+     <property name="spacing">
+      <number>20</number>
+     </property>
+     <item>
+      <widget class="QPushButton" name="open_file_folder">
+       <property name="text">
+        <string>打开撤回文件目录</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="clear_display">
+       <property name="text">
+        <string>清除显示</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
@@ -191,7 +224,6 @@
     </property>
     <addaction name="help_about"/>
     <addaction name="help_guide"/>
-    <addaction name="help_register"/>
     <addaction name="help_contact"/>
    </widget>
    <addaction name="menu"/>
@@ -217,6 +249,10 @@
    </attribute>
   </widget>
   <action name="file_quit">
+   <property name="icon">
+    <iconset resource="icon/icon.qrc">
+     <normaloff>:/icon/export.png</normaloff>:/icon/export.png</iconset>
+   </property>
    <property name="text">
     <string>退出</string>
    </property>
@@ -227,11 +263,19 @@
    </property>
   </action>
   <action name="help_about">
+   <property name="icon">
+    <iconset resource="icon/icon.qrc">
+     <normaloff>:/icon/fav.png</normaloff>:/icon/fav.png</iconset>
+   </property>
    <property name="text">
     <string>关于</string>
    </property>
   </action>
   <action name="help_guide">
+   <property name="icon">
+    <iconset resource="icon/icon.qrc">
+     <normaloff>:/icon/help.png</normaloff>:/icon/help.png</iconset>
+   </property>
    <property name="text">
     <string>使用说明</string>
    </property>
@@ -242,16 +286,26 @@
    </property>
   </action>
   <action name="help_contact">
+   <property name="icon">
+    <iconset resource="icon/icon.qrc">
+     <normaloff>:/icon/mail.png</normaloff>:/icon/mail.png</iconset>
+   </property>
    <property name="text">
     <string>联系我们</string>
    </property>
   </action>
   <action name="setting_file_storage_path">
+   <property name="icon">
+    <iconset resource="icon/icon.qrc">
+     <normaloff>:/icon/settings.png</normaloff>:/icon/settings.png</iconset>
+   </property>
    <property name="text">
-    <string>设置消息文件存放路径</string>
+    <string>设置撤回文件存放目录</string>
    </property>
   </action>
  </widget>
- <resources/>
+ <resources>
+  <include location="icon/icon.qrc"/>
+ </resources>
  <connections/>
 </ui>

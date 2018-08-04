@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import sys, logging, os
+import sys, logging, os, subprocess, webbrowser
 from PyQt5.QtWidgets import (QMainWindow, QFileDialog, QApplication, QMessageBox)
 from PyQt5.QtCore import (QThread, pyqtSignal, QObject, pyqtSlot)
 from Ui_mainWindow import Ui_wechat_tools
@@ -13,6 +13,8 @@ logging.basicConfig(level=logging.INFO,
                     )
 
 single_id = None
+
+help_url = 'https://www.shangyexin.com/help'
 
 
 class analyze_friends(QObject):
@@ -185,6 +187,8 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
         self.ui.file_quit.triggered.connect(self.close)
         self.ui.setting_file_storage_path.triggered.connect(self.setting_cliked)
         self.ui.help_about.triggered.connect(self.help_about_clicked)
+        self.ui.help_guide.triggered.connect(self.help_guide_clicked)
+        self.ui.help_contact.triggered.connect(self.help_contact_clicked)
 
         # 按钮
         self.ui.button_login.clicked.connect(self.button_loggin_cliked)
@@ -192,6 +196,8 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
         self.ui.button_delete_detection.clicked.connect(self.button_detection_cliked)
         self.ui.button_withdraw.clicked.connect(self.button_withdraw_message)
         self.ui.button_robot.clicked.connect(self.button_robot_cliked)
+        self.ui.clear_display.clicked.connect(self.ui_show_clear)
+        self.ui.open_file_folder.clicked.connect(self.open_file_folder)
 
         # 按钮全部置灰，登录后才可使用
         self.disable_function_buttons(True)
@@ -228,9 +234,25 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
     # 菜单栏-帮助-关于
     def help_about_clicked(self):
         QMessageBox.about(self, '关于',
-                          'version：0.1'
+                          'WechatTools'
+                           '\n'
+                          'Version：1.0'
                           '\n'
-                          'author: yasin')
+                          'Author: yasin')
+        return
+
+    # 菜单栏-帮助-使用说明
+    def help_guide_clicked(self):
+        webbrowser.open(help_url, new=0, autoraise=True)
+        return
+
+    # 菜单栏-帮助-联系我们
+    def help_contact_clicked(self):
+        QMessageBox.about(self, '联系我们',
+                          'QQ :  835189922'
+                          '\n' 
+                          '\n'
+                          '邮箱:  yexin.shang@gmail.com')
         return
 
     # 扫码登录按钮
@@ -297,13 +319,13 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
     def button_robot_cliked(self):
         if self.robot_button_pressed is False:
             self.robot_button_pressed = True
-            self.ui_show_info('开启聊天机器人！')
+            self.ui_show_info('开启聊天机器人成功！')
             self.ui.button_robot.setText('关闭自动回复机器人')
             self.ui.button_withdraw.setDisabled(True)
             self.wechat_handle.enable_robot()
         else:
             self.robot_button_pressed = False
-            self.ui_show_info('关闭聊天机器人！')
+            self.ui_show_info('关闭聊天机器人成功！')
             self.ui.button_robot.setText('开启自动回复机器人')
             self.ui.button_withdraw.setDisabled(False)
             self.wechat_handle.disable_robot()
@@ -312,6 +334,18 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
     # 显示机器人自动回复消息
     def show_robot_reply_msg(self, reply_msg):
         self.ui_show_info(reply_msg)
+        return
+
+    def open_file_folder(self):
+        # 在资源管理器中打开
+        abs_path = os.path.abspath(self.withdraw_file_store_path)
+        open_dst_cmd = 'explorer.exe ' + abs_path
+        print(open_dst_cmd)
+        try:
+            subprocess.Popen(open_dst_cmd)
+            self.ui_show_info('打开撤回文件存放目录成功！')
+        except Exception as e:
+            logging.error(e)
         return
 
     # 登录成功处理函数

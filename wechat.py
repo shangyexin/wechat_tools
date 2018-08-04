@@ -290,7 +290,7 @@ class single_wechat_id:
                     itchat.send_file(emoticon, toUserName='filehelper')
                     logging.info('Withdraw a emoticon.')
                 else:  # 发送撤回的提示给文件助手
-                    msg_body = old_msg['group_name'] + old_msg['msg_from'] + "\n" + old_msg['msg_time_rec'] \
+                    msg_body = '\n' + old_msg['group_name'] + old_msg['msg_from'] + "\n" + old_msg['msg_time_rec'] \
                                + "撤回了:" + "\n" + r"" + old_msg['msg_content']
                     # 如果是分享的文件被撤回了，那么就将分享的url加在msg_body中发送给文件助手
                     if old_msg['msg_type'] == "Sharing":
@@ -360,8 +360,8 @@ class single_wechat_id:
                     msg_from = itchat.search_friends(userName=msg['FromUserName'])['RemarkName']
                 else:
                     msg_from = itchat.search_friends(userName=msg['FromUserName'])['NickName']  # 在好友列表中查询发送信息的好友昵称
-                    msg_time_rec = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())  # 接收消息的时间
-                msg_show = '\n' + str(msg_time_rec)  + ' ' + msg_from + " : " + msg['Text'] \
+                msg_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())  # 接收消息的时间
+                msg_show = '\n' + str(msg_time)  + ' ' + msg_from + " : " + msg['Text'] \
                         + '\n自动回复内容： '+ reply
                 logging.info('msg_show is %s' % msg_show)
                 cb(msg_show)
