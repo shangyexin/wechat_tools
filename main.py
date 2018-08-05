@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 import sys, logging, os, subprocess, webbrowser
-from PyQt5.QtWidgets import (QMainWindow, QFileDialog, QApplication, QMessageBox)
+from PyQt5.QtWidgets import (QMainWindow, QFileDialog, QApplication, QMessageBox, QSystemTrayIcon, QMenu, QAction)
 from PyQt5.QtCore import (QThread, pyqtSignal, QObject, pyqtSlot)
+from PyQt5.QtGui import QIcon, QPixmap
+
 from Ui_mainWindow import Ui_wechat_tools
 
 from wechat import single_wechat_id
@@ -183,6 +185,11 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
         self.ui = Ui_wechat_tools()
         self.ui.setupUi(self)
 
+        # 托盘图标
+        self.create_actions()
+        self.create_tray_icon()
+        self.trayIcon.activated.connect(self.icon_activated)
+
         # 菜单栏
         self.ui.file_quit.triggered.connect(self.close)
         self.ui.setting_file_storage_path.triggered.connect(self.setting_cliked)
@@ -191,13 +198,17 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
         self.ui.help_contact.triggered.connect(self.help_contact_clicked)
 
         # 按钮
+        self.ui.open_file_folder.clicked.connect(self.open_file_folder)
+        self.ui.button_background.clicked.connect(self.run_in_background)
+        self.ui.clear_display.clicked.connect(self.ui_show_clear)
+
         self.ui.button_login.clicked.connect(self.button_loggin_cliked)
         self.ui.button_analyze.clicked.connect(self.button_analyze_cliked)
         self.ui.button_delete_detection.clicked.connect(self.button_detection_cliked)
         self.ui.button_withdraw.clicked.connect(self.button_withdraw_message)
         self.ui.button_robot.clicked.connect(self.button_robot_cliked)
-        self.ui.clear_display.clicked.connect(self.ui_show_clear)
-        self.ui.open_file_folder.clicked.connect(self.open_file_folder)
+
+
 
         # 按钮全部置灰，登录后才可使用
         self.disable_function_buttons(True)
@@ -205,6 +216,35 @@ class MainWindow(QMainWindow, Ui_wechat_tools):
         # 从配置文件中读取设置
         self.my_config = configure()
         self.read_config_file()
+
+    # 创建托盘图标，可以让程序最小化到windows托盘中运行
+    def create_tray_icon(self):
+        self.trayIconMenu = QMenu(self)
+        self.trayIconMenu.addAction(self.restoreAction)
+        self.trayIconMenu.addSeparator()
+        self.trayIconMenu.addAction(self.quitAction)
+        self.trayIcon = QSystemTrayIcon(self)
+        self.trayIcon.setContextMenu(self.trayIconMenu)
+        icon = QIcon()
+        icon.addPixmap(QPixmap(":/icon/wechat.png"), QIcon.Normal, QIcon.Off)
+        self.trayIcon.setIcon(icon)
+        self.setWindowIcon(QIcon(icon))
+        self.trayIcon.show()
+        return
+
+    # 为托盘图标添加功能
+    def create_actions(self):
+        self.restoreAction = QAction("恢复", self, triggered=self.showNormal)
+        self.quitAction = QAction("退出", self, triggered=QApplication.instance().quit)
+
+    # 激活托盘功能
+    def icon_activated(self, reason):
+        if reason in (QSystemTrayIcon.Trigger, QSystemTrayIcon.DoubleClick):
+            self.showNormal()
+
+    # 后台运行
+    def run_in_background(self):
+        self.hide()
 
     # 输出log到GUI文本框
     def ui_show_info(self, str):

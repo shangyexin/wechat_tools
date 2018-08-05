@@ -170,9 +170,9 @@
    <widget class="QWidget" name="horizontalLayoutWidget_3">
     <property name="geometry">
      <rect>
-      <x>560</x>
+      <x>480</x>
       <y>10</y>
-      <width>221</width>
+      <width>296</width>
       <height>51</height>
      </rect>
     </property>
@@ -184,6 +184,13 @@
       <widget class="QPushButton" name="open_file_folder">
        <property name="text">
         <string>打开撤回文件目录</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="button_background">
+       <property name="text">
+        <string>后台运行</string>
        </property>
       </widget>
      </item>
