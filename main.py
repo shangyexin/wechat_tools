@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO,
 
 single_id = None
 
-help_url = 'https://www.shangyexin.com/help'
+help_url = 'https://www.shangyexin.com/wechat_tools'
 
 
 class analyze_friends(QObject):
